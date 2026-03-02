@@ -1,8 +1,10 @@
 {
-  "name": "upfile-cli",
+  "name": "upfile",
   "version": "0.1.0",
   "description": "Instant file uploads from the command line — upfile.sh",
-  "bin": { "upfile": "./bin/upfile" },
+  "bin": {
+    "upfile": "./bin/upfile"
+  },
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
