@@ -1,0 +1,21 @@
+{
+  "name": "upfile-cli",
+  "version": "0.1.0",
+  "description": "Instant file uploads from the command line — upfile.sh",
+  "bin": { "upfile": "./bin/upfile" },
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "ts-node src/index.ts",
+    "prepublishOnly": "yarn build"
+  },
+  "dependencies": {
+    "form-data": "^4.0.0",
+    "node-fetch": "^3.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.4.0",
+    "ts-node": "^10.9.0"
+  }
+}
