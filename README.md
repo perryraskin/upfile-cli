@@ -1,11 +1,13 @@
 # upfile-cli
 
-Instant file uploads from your terminal. Get a permanent URL in under a second.
+Upload any file from your terminal. Get a permanent URL instantly.
+
+→ [upfile.sh](https://upfile.sh)
 
 ## Install
 
 ```bash
-npm install -g upfile-cli
+yarn global add upfile-cli
 ```
 
 ## Setup
@@ -19,38 +21,58 @@ Get your API key at [upfile.sh](https://upfile.sh).
 ## Usage
 
 ```bash
-# Upload a file → permanent public URL
+# Public — permanent URL, anyone can access
 upfile screenshot.png
 # https://cdn.upfile.sh/xK9mZ.png
 
-# Expiring URL (TTL in seconds)
-upfile screenshot.png --expiry 3600
+# Expiring — self-destructs after TTL (seconds)
+upfile report.pdf --expiry 3600
 
-# Private (auth-gated)
+# Private — auth-gated, only you can access
 upfile secret.pdf --private
 
-# JSON output (for AI agents / scripts)
+# JSON output — for AI agents and scripts
 upfile screenshot.png --json
-# { "url": "...", "id": "...", "visibility": "public", "expires_at": null, ... }
 
-# Pipe from stdin
-cat screenshot.png | upfile
-screencapture -x - | upfile   # macOS: capture + upload in one line
+# Pipe from stdin — capture and upload in one line
+screencapture -x - | upfile
+cat file.txt | upfile --json
 ```
 
 ## Options
 
 | Flag | Description |
 |------|-------------|
-| `--private` | Private file, auth required to access |
-| `--expiry <seconds>` | Expiring URL with TTL |
-| `--json` | Output full JSON response |
+| `--private` | Private file, requires auth to access |
+| `--expiry <sec>` | Expiring URL with TTL in seconds |
+| `--json` | Full JSON response (url, id, visibility, expires_at) |
+
+## JSON response
+
+```json
+{
+  "id": "xK9mZaBcDe",
+  "url": "https://cdn.upfile.sh/xK9mZaBcDe.png",
+  "visibility": "public",
+  "size": 84231,
+  "type": "image/png",
+  "expires_at": null,
+  "created_at": "2026-03-02T03:00:00.000Z"
+}
+```
 
 ## Config
 
 ```bash
-upfile config set api-key <key>
-upfile config set endpoint <url>   # for self-hosted
+upfile config set api-key <key>      # save API key
+upfile config set endpoint <url>     # self-hosted endpoint
+upfile config get                    # view current config
 ```
 
 Config stored at `~/.upfile/config.json`.
+
+## Environment variables
+
+| Var | Description |
+|-----|-------------|
+| `UPFILE_API_KEY` | API key (overrides config file) |
