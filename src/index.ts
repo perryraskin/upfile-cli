@@ -1,5 +1,5 @@
 import path from "path";
-import { uploadFile, uploadStdin } from "./upload.js";
+import { uploadFile, uploadStdin, listFiles, deleteFile } from "./upload.js";
 import { saveConfig, loadConfig } from "./config.js";
 import type { Visibility } from "./types.js";
 
@@ -15,23 +15,55 @@ function hasFlag(name: string): boolean {
   return args.includes(`--${name}`);
 }
 
+function formatSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes}B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+}
+
 async function main() {
-  // upfile config set <key> <value>
-  if (args[0] === "config" && args[1] === "set") {
-    const [, , , key, value] = args;
-    if (key === "api-key") saveConfig({ apiKey: value });
-    else if (key === "endpoint") saveConfig({ endpoint: value });
-    else { console.error(`Unknown config key: ${key}`); process.exit(1); }
-    console.log(`✓ ${key} saved`);
+  const cmd = args[0];
+
+  // upfile config set/get
+  if (cmd === "config") {
+    if (args[1] === "set") {
+      const [, , , key, value] = args;
+      if (!key || !value) { console.error("Usage: upfile config set <key> <value>"); process.exit(1); }
+      if (key === "api-key") saveConfig({ apiKey: value });
+      else if (key === "endpoint") saveConfig({ endpoint: value });
+      else { console.error(`Unknown config key: ${key}`); process.exit(1); }
+      console.log(`✓ ${key} saved`);
+    } else {
+      console.log(JSON.stringify(loadConfig(), null, 2));
+    }
     return;
   }
 
-  // upfile config get
-  if (args[0] === "config" && args[1] === "get") {
-    console.log(JSON.stringify(loadConfig(), null, 2));
+  // upfile ls [--limit N]
+  if (cmd === "ls" || cmd === "list") {
+    const limit = parseInt(flag("limit") || "20");
+    const isJson = hasFlag("json");
+    const files = await listFiles(limit);
+    if (isJson) { console.log(JSON.stringify(files, null, 2)); return; }
+    if (files.length === 0) { console.log("No files yet."); return; }
+    for (const f of files) {
+      const expires = f.expires_at ? ` (expires ${new Date(f.expires_at).toLocaleDateString()})` : "";
+      console.log(`${f.id}  ${formatSize(f.size).padEnd(8)}  [${f.visibility}]${expires}`);
+      console.log(`       ${f.url}`);
+    }
     return;
   }
 
+  // upfile rm <id>
+  if (cmd === "rm" || cmd === "delete") {
+    const id = args[1];
+    if (!id) { console.error("Usage: upfile rm <id>"); process.exit(1); }
+    await deleteFile(id);
+    console.log(`✓ deleted ${id}`);
+    return;
+  }
+
+  // upfile <file> [flags] OR stdin pipe
   const isJson = hasFlag("json");
   const isPrivate = hasFlag("private");
   const ttl = flag("expiry") ? parseInt(flag("expiry")!) : undefined;
@@ -39,26 +71,30 @@ async function main() {
   const opts = { visibility, ttl, json: isJson };
 
   let result;
-
-  // stdin pipe: cat file | upfile
-  if (!process.stdin.isTTY && args.length === 0) {
+  if (!process.stdin.isTTY && !cmd) {
     result = await uploadStdin(opts);
   } else {
     const filePath = args.find(a => !a.startsWith("--"));
     if (!filePath) {
-      console.error("Usage: upfile <file> [--private] [--expiry <seconds>] [--json]");
-      console.error("       cat file | upfile [--json]");
-      console.error("       upfile config set api-key <key>");
+      console.error([
+        "Usage:",
+        "  upfile <file>                       upload file (public)",
+        "  upfile <file> --private             private file",
+        "  upfile <file> --expiry <seconds>    expiring URL",
+        "  upfile <file> --json                JSON output",
+        "  cat file | upfile                   pipe from stdin",
+        "  upfile ls [--limit N] [--json]      list your files",
+        "  upfile rm <id>                      delete a file",
+        "  upfile config set api-key <key>",
+        "  upfile config set endpoint <url>",
+      ].join("\n"));
       process.exit(1);
     }
     result = await uploadFile(path.resolve(filePath), opts);
   }
 
-  if (isJson) {
-    console.log(JSON.stringify(result, null, 2));
-  } else {
-    console.log(result.url);
-  }
+  if (isJson) console.log(JSON.stringify(result, null, 2));
+  else console.log(result.url);
 }
 
 main().catch(e => { console.error(e.message); process.exit(1); });
