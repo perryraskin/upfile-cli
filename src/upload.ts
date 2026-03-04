@@ -9,8 +9,38 @@ function getAuth() {
   const config = loadConfig();
   const apiKey = config.apiKey || process.env.UPFILE_API_KEY;
   const endpoint = config.endpoint || DEFAULT_ENDPOINT;
-  if (!apiKey) throw new Error("No API key. Run: upfile config set api-key YOUR_KEY");
+  if (!apiKey) throw new Error("No API key. Run: upfile signup --email your@email.com");
   return { apiKey, endpoint };
+}
+
+export async function signup(email: string, ownerEmail?: string): Promise<{ api_key: string; tier: string; storage_limit_gb: number; message: string }> {
+  const { endpoint } = getAuth();
+  const res = await fetch(`${endpoint}/signup`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, owner_email: ownerEmail }),
+  });
+  if (!res.ok) throw new Error(`Signup failed (${res.status}): ${await res.text()}`);
+  return res.json() as Promise<{ api_key: string; tier: string; storage_limit_gb: number; message: string }>;
+}
+
+export async function getStatus(): Promise<{ tier: string; storage_used_gb: string; storage_limit_gb: string }> {
+  const { apiKey, endpoint } = getAuth();
+  const res = await fetch(`${endpoint}/status`, {
+    headers: { Authorization: `Bearer ${apiKey}` },
+  });
+  if (!res.ok) throw new Error(`Status check failed (${res.status}): ${await res.text()}`);
+  const data = await res.json() as { tier: string; storage_used_gb: string; storage_limit_gb: string };
+  return data;
+}
+
+export async function getUpgradeUrl(): Promise<{ checkout_url?: string; message: string; price?: string }> {
+  const { apiKey, endpoint } = getAuth();
+  const res = await fetch(`${endpoint}/upgrade`, {
+    headers: { Authorization: `Bearer ${apiKey}` },
+  });
+  if (!res.ok) throw new Error(`Upgrade check failed (${res.status}): ${await res.text()}`);
+  return res.json() as Promise<{ checkout_url?: string; message: string; price?: string }>;
 }
 
 export async function uploadFile(filePath: string, opts: UploadOptions): Promise<UploadResponse> {
@@ -25,7 +55,13 @@ export async function uploadFile(filePath: string, opts: UploadOptions): Promise
     headers: { Authorization: `Bearer ${apiKey}`, ...form.getHeaders() },
     body: form,
   });
-  if (!res.ok) throw new Error(`Upload failed (${res.status}): ${await res.text()}`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: await res.text() }));
+    if (err.error?.includes("Storage limit")) {
+      throw new Error(`Storage limit reached (${err.storage_used_gb}GB / ${err.limit_gb}GB). ${err.message}`);
+    }
+    throw new Error(`Upload failed (${res.status}): ${err.error || await res.text()}`);
+  }
   return res.json() as Promise<UploadResponse>;
 }
 

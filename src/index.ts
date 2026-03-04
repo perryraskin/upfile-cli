@@ -1,5 +1,5 @@
 import path from "path";
-import { uploadFile, uploadStdin, listFiles, deleteFile } from "./upload.js";
+import { uploadFile, uploadStdin, listFiles, deleteFile, signup, getStatus, getUpgradeUrl } from "./upload.js";
 import { saveConfig, loadConfig } from "./config.js";
 import type { Visibility } from "./types.js";
 
@@ -23,6 +23,45 @@ function formatSize(bytes: number): string {
 
 async function main() {
   const cmd = args[0];
+
+  // upfile signup --email me@example.com [--owner-email owner@example.com]
+  if (cmd === "signup") {
+    const email = flag("email");
+    const ownerEmail = flag("owner-email");
+    if (!email) {
+      console.error("Usage: upfile signup --email your@email.com [--owner-email owner@company.com]");
+      process.exit(1);
+    }
+    const result = await signup(email, ownerEmail);
+    console.log("✓ Account created");
+    console.log(`API key: ${result.api_key}`);
+    console.log(`Tier: ${result.tier} (${result.storage_limit_gb}GB)`);
+    saveConfig({ apiKey: result.api_key });
+    console.log("\nKey saved. You're ready to upload.");
+    return;
+  }
+
+  // upfile status
+  if (cmd === "status") {
+    const status = await getStatus();
+    console.log(`Tier: ${status.tier}`);
+    console.log(`Storage: ${status.storage_used_gb}GB / ${status.storage_limit_gb}GB`);
+    return;
+  }
+
+  // upfile upgrade
+  if (cmd === "upgrade") {
+    const result = await getUpgradeUrl();
+    if (result.checkout_url) {
+      console.log(`Upgrade link: ${result.checkout_url}`);
+      console.log(`Sent to: ${result.message}`);
+    } else {
+      console.log("Manual upgrade:");
+      console.log(result.message);
+      console.log(`Price: ${result.price}`);
+    }
+    return;
+  }
 
   // upfile config set/get
   if (cmd === "config") {
@@ -78,13 +117,16 @@ async function main() {
     if (!filePath) {
       console.error([
         "Usage:",
-        "  upfile <file>                       upload file (public)",
-        "  upfile <file> --private             private file",
-        "  upfile <file> --expiry <seconds>    expiring URL",
-        "  upfile <file> --json                JSON output",
-        "  cat file | upfile                   pipe from stdin",
-        "  upfile ls [--limit N] [--json]      list your files",
-        "  upfile rm <id>                      delete a file",
+        "  upfile signup --email <email> [--owner-email <email>]  create account",
+        "  upfile status                                           check storage",
+        "  upfile upgrade                                          get upgrade link",
+        "  upfile <file>                                          upload file (public)",
+        "  upfile <file> --private                               private file",
+        "  upfile <file> --expiry <seconds>                     expiring URL",
+        "  upfile <file> --json                                  JSON output",
+        "  cat file | upfile                                      pipe from stdin",
+        "  upfile ls [--limit N] [--json]                         list your files",
+        "  upfile rm <id>                                        delete a file",
         "  upfile config set api-key <key>",
         "  upfile config set endpoint <url>",
       ].join("\n"));
