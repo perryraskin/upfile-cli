@@ -56,11 +56,12 @@ export async function uploadFile(filePath: string, opts: UploadOptions): Promise
     body: form,
   });
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: await res.text() }));
-    if (err.error?.includes("Storage limit")) {
-      throw new Error(`Storage limit reached (${err.storage_used_gb}GB / ${err.limit_gb}GB). ${err.message}`);
+    const err = await res.json().catch(async () => ({ error: await res.text() }));
+    const errorObj = err as { error?: string; storage_used_gb?: string; limit_gb?: string; message?: string };
+    if (errorObj.error?.includes("Storage limit")) {
+      throw new Error(`Storage limit reached (${errorObj.storage_used_gb}GB / ${errorObj.limit_gb}GB). ${errorObj.message}`);
     }
-    throw new Error(`Upload failed (${res.status}): ${err.error || await res.text()}`);
+    throw new Error(`Upload failed (${res.status}): ${errorObj.error || await res.text()}`);
   }
   return res.json() as Promise<UploadResponse>;
 }

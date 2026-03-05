@@ -1,15 +1,42 @@
 {
-  "name": "upfile",
+  "name": "upfilesh",
   "version": "0.1.0",
   "description": "Instant file uploads from the command line — upfile.sh",
   "bin": {
     "upfile": "./bin/upfile"
   },
   "main": "dist/index.js",
+  "files": [
+    "bin/",
+    "dist/",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "ts-node src/index.ts",
     "prepublishOnly": "yarn build"
+  },
+  "keywords": [
+    "upload",
+    "file-sharing",
+    "cli",
+    "cdn",
+    "ai-agents",
+    "terminal",
+    "command-line"
+  ],
+  "author": "Perry Raskin <perry@upfile.sh>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/upfilesh/cli.git"
+  },
+  "bugs": {
+    "url": "https://github.com/upfilesh/cli/issues"
+  },
+  "homepage": "https://upfile.sh",
+  "engines": {
+    "node": ">=18"
   },
   "dependencies": {
     "form-data": "^4.0.0",
